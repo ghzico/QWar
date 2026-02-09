@@ -22,6 +22,7 @@ public partial class FightBoard : Control
 	private Control _clickLayer = null!;
 	private Control _highlightContainer = null!;
 	private readonly List<ColorRect> _highlightRects = new();
+	private Button _cancelButton = null!;
 
 	public override void _Ready()
 	{
@@ -43,7 +44,35 @@ public partial class FightBoard : Control
 
 		_highlightContainer = new Control { MouseFilter = Control.MouseFilterEnum.Ignore };
 		AddChild(_highlightContainer);
-		AddChild(_clickLayer); // 放在最上层，统一接收格子点击（含敌将格）
+		AddChild(_clickLayer);
+
+		// 统一行动取消按钮：在移动/攻击/技能选目标时显示，点击后取消当前操作
+		_cancelButton = new Button
+		{
+			Text = "取消",
+			Visible = false,
+			Position = new Vector2(boardSize.X - 76, 8),
+			Size = new Vector2(68, 36)
+		};
+		_cancelButton.Pressed += OnCancelActionPressed;
+		AddChild(_cancelButton);
+	}
+
+	/// <summary>显示取消按钮（进入选目标状态时调用）</summary>
+	public void ShowCancelButton()
+	{
+		_cancelButton.Visible = true;
+	}
+
+	/// <summary>隐藏取消按钮（取消或完成操作时调用）</summary>
+	public void HideCancelButton()
+	{
+		_cancelButton.Visible = false;
+	}
+
+	private void OnCancelActionPressed()
+	{
+		SelectedHero?.CancelTargetMode();
 	}
 
 	private void OnClickLayerInput(InputEvent @event)
@@ -169,17 +198,51 @@ public partial class FightBoard : Control
 		return list;
 	}
 
-	/// <summary>获取可移动到的相邻空格</summary>
-	public List<(int row, int col)> GetEmptyNeighbourCells(int row, int col)
+	/// <summary>曼哈顿距离</summary>
+	public static int ManhattanDistance(int r1, int c1, int r2, int c2)
+		=> Math.Abs(r2 - r1) + Math.Abs(c2 - c1);
+
+	/// <summary>获取距离 (row,col) 曼哈顿距离 &lt;= range 且在范围内的所有格子（不含自身）</summary>
+	public List<(int row, int col)> GetCellsWithinRange(int row, int col, int range)
 	{
 		var list = new List<(int row, int col)>();
-		foreach (var (nr, nc) in GetNeighbourCells(row, col))
+		for (int r = 0; r < BoardRows; r++)
+		for (int c = 0; c < BoardCols; c++)
 		{
-			if (GetUnitAt(nr, nc) == null)
-				list.Add((nr, nc));
+			if (r == row && c == col) continue;
+			if (ManhattanDistance(row, col, r, c) <= range)
+				list.Add((r, c));
 		}
 		return list;
 	}
+
+	/// <summary>获取在移动距离内的空格（可移动目标）</summary>
+	public List<(int row, int col)> GetEmptyCellsInMoveRange(int row, int col, int moveRange)
+	{
+		var list = new List<(int row, int col)>();
+		foreach (var (r, c) in GetCellsWithinRange(row, col, moveRange))
+		{
+			if (GetUnitAt(r, c) == null)
+				list.Add((r, c));
+		}
+		return list;
+	}
+
+	/// <summary>获取在攻击距离内的敌将所在格子（可攻击目标）</summary>
+	public List<(int row, int col)> GetEnemyCellsInAttackRange(int row, int col, int attackRange)
+	{
+		var list = new List<(int row, int col)>();
+		foreach (var (r, c) in GetCellsWithinRange(row, col, attackRange))
+		{
+			if (GetUnitAt(r, c) is ChessEnemy)
+				list.Add((r, c));
+		}
+		return list;
+	}
+
+	/// <summary>获取可移动到的相邻空格（兼容旧逻辑，等价于 moveRange=1）</summary>
+	public List<(int row, int col)> GetEmptyNeighbourCells(int row, int col)
+		=> GetEmptyCellsInMoveRange(row, col, 1);
 
 	public void MoveUnit(int fromRow, int fromCol, int toRow, int toCol)
 	{
@@ -187,5 +250,15 @@ public partial class FightBoard : Control
 			return;
 		_gridUnits.Remove((fromRow, fromCol));
 		PlaceUnit(unit, toRow, toCol);
+	}
+
+	/// <summary>对若干格子内的敌将造成伤害（用于 AOE 技能等）</summary>
+	public void ApplyDamageToCells(IEnumerable<(int row, int col)> cells, int damage)
+	{
+		foreach (var (r, c) in cells)
+		{
+			if (GetUnitAt(r, c) is ChessEnemy enemy)
+				enemy.TakeDamage(damage);
+		}
 	}
 }

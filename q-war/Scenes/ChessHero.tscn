@@ -21,7 +21,7 @@ offset_bottom = -2.0
 color = Color(0.2, 0.4, 0.9, 1)
 
 [node name="ActionPopup" type="PopupPanel" parent="."]
-size = Vector2i(160, 80)
+size = Vector2i(160, 120)
 script = null
 
 [node name="Margin" type="MarginContainer" parent="ActionPopup"]
@@ -48,3 +48,8 @@ text = "移动"
 [node name="Attack" type="Button" parent="ActionPopup/Margin/VBox"]
 layout_mode = 2
 text = "攻击"
+
+[node name="Skill" type="Button" parent="ActionPopup/Margin/VBox"]
+layout_mode = 2
+visible = false
+text = "技能"

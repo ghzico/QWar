@@ -19,6 +19,9 @@ public partial class TestScene : Control
 		for (int i = 0; i < 3; i++)
 		{
 			var hero = heroScene.Instantiate<ChessHero>();
+			hero.SetHeroIndex(i); // 0=普通 1=AOE技能 2=下次攻击×3
+			hero.MoveRange = 2;   // 可配置：移动距离
+			hero.AttackRange = 2; // 可配置：攻击距离
 			board.PlaceUnit(hero, i, 0);
 		}
 
