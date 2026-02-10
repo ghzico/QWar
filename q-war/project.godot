@@ -13,7 +13,7 @@ config_version=5
 config/name="QWar"
 run/main_scene="res://Scenes/TestScene.tscn"
 config/features=PackedStringArray("4.6", "C#", "Mobile")
-config/icon="res://icon.svg"
+config/icon="res://Res/icon.svg"
 
 [dotnet]
 

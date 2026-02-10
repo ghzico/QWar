@@ -45,7 +45,7 @@ public partial class ChessHero : Control
 			n = n.GetParent();
 		}
 		if (_board == null)
-			_board = GetTree().CurrentScene?.GetNode<FightBoard>("FightBoard")!;
+			_board = GetTree().CurrentScene?.GetNode<FightBoard>("MainVBox/BoardCenter/FightBoard")!;
 
 		_actionPopup = GetNode<PopupPanel>("ActionPopup");
 		_btnMove = GetNode<Button>("ActionPopup/Margin/VBox/Move");

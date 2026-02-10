@@ -4,12 +4,13 @@ namespace QWar;
 
 /// <summary>
 /// 测试场景：5 行 10 列棋盘，左侧第一列 3 个棋将，右侧第一列 3 个敌将。
+/// 棋盘上方显示规则说明 Label，具体规则文本可后续在场景或代码中设置。
 /// </summary>
 public partial class TestScene : Control
 {
 	public override void _Ready()
 	{
-		var board = GetNode<FightBoard>("FightBoard");
+		var board = GetNode<FightBoard>("MainVBox/BoardCenter/FightBoard");
 		board.BoardRows = 5;
 		board.BoardCols = 10;
 

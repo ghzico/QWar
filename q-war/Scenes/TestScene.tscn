@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://c2testscene"]
 
-[ext_resource type="Script" path="res://Scenes/TestScene.cs" id="1_script"]
+[ext_resource type="Script" path="res://Scripts/TestScene.cs" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://c2fightboard" path="res://Scenes/FightBoard.tscn" id="2_fightboard"]
 
 [node name="TestScene" type="Control"]
@@ -8,19 +8,38 @@ layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 script = ExtResource("1_script")
 
-[node name="FightBoard" parent="." instance=ExtResource("2_fightboard")]
+[node name="MainVBox" type="VBoxContainer" parent="."]
 layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -320.0
-offset_top = -160.0
-offset_right = 320.0
-offset_bottom = 160.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="RulesLabel" type="Label" parent="MainVBox"]
+custom_minimum_size = Vector2(500, 50)
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "规则说明：点击我方棋子，可选择攻击、移动或使用技能；
+普通攻击造成1点伤害；
+2#棋子技能可造成十字范围伤害1点；3#棋子技能可令下次攻击伤害增加2点。"
+autowrap_mode = 2
+
+[node name="BoardCenter" type="CenterContainer" parent="MainVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="FightBoard" parent="MainVBox/BoardCenter" instance=ExtResource("2_fightboard")]
+layout_mode = 2
 BoardRows = 5
 BoardCols = 10
 CellSizePx = 64
