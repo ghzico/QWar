@@ -11,8 +11,11 @@ public partial class ChessEnemy : Control
 	private const int MaxHp = 10;
 
 	private int _hp = MaxHp;
-	private ColorRect _colorRect = null!;
+	private TextureRect _textureRect = null!;
 	private Label _label = null!;
+
+	/// <summary>敌将立绘，可在场景中导出或运行时通过 SetPortrait 设置</summary>
+	[Export] public Texture2D? PortraitTexture { get; set; }
 
 	public int GridRow { get; private set; }
 	public int GridCol { get; private set; }
@@ -21,10 +24,19 @@ public partial class ChessEnemy : Control
 
 	public override void _Ready()
 	{
-	_colorRect = GetNode<ColorRect>("ColorRect");
-	_label = GetNode<Label>("Label");
-	_colorRect.Color = new Color(0.8f, 0.2f, 0.2f); // 红色表示敌将
-	UpdateHpDisplay();
+		_textureRect = GetNode<TextureRect>("TextureRect");
+		_label = GetNode<Label>("Label");
+		if (PortraitTexture != null)
+			_textureRect.Texture = PortraitTexture;
+		UpdateHpDisplay();
+	}
+
+	/// <summary>运行时设置立绘（与导出 PortraitTexture 二选一，用于同一场景不同资源）</summary>
+	public void SetPortrait(Texture2D texture)
+	{
+		PortraitTexture = texture;
+		if (_textureRect != null)
+			_textureRect.Texture = texture;
 	}
 
 	public void SetGridPosition(int row, int col)

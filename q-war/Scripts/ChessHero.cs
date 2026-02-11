@@ -12,6 +12,8 @@ public partial class ChessHero : Control
 	public int GridRow { get; private set; }
 	public int GridCol { get; private set; }
 
+	/// <summary>攻击力（普攻与技能伤害基数）</summary>
+	[Export] public int Attack { get; set; } = 1;
 	/// <summary>移动距离（格数，曼哈顿）</summary>
 	[Export] public int MoveRange { get; set; } = 1;
 	/// <summary>攻击距离（格数，曼哈顿）</summary>
@@ -19,7 +21,13 @@ public partial class ChessHero : Control
 	/// <summary>棋将序号：0=普通，1=AOE技能，2=下次攻击×3</summary>
 	public int HeroIndex { get; private set; }
 
-	private ColorRect _colorRect = null!;
+	/// <summary>棋将立绘，可在场景中导出或运行时通过 SetPortrait 设置</summary>
+	[Export] public Texture2D? PortraitTexture { get; set; }
+
+	/// <summary>形象资源路径（由配置加载器设置，_Ready 时若尚无贴图会用此路径再加载一次以确保显示）</summary>
+	internal string? PortraitPath { get; private set; }
+
+	private TextureRect _textureRect = null!;
 	private FightBoard _board = null!;
 	private PopupPanel _actionPopup = null!;
 	private Button _btnMove = null!;
@@ -35,8 +43,19 @@ public partial class ChessHero : Control
 
 	public override void _Ready()
 	{
-		_colorRect = GetNode<ColorRect>("ColorRect");
-		_colorRect.Color = new Color(0.2f, 0.4f, 0.9f);
+		_textureRect = GetNode<TextureRect>("TextureRect");
+		// 优先用已设置的贴图；若无则用配置路径再加载一次（解决先 ApplyToHero 再入树时贴图未绑定的问题）
+		if (PortraitTexture != null)
+			_textureRect.Texture = PortraitTexture;
+		else if (!string.IsNullOrEmpty(PortraitPath))
+		{
+			var tex = GD.Load<Texture2D>(PortraitPath);
+			if (tex != null)
+			{
+				PortraitTexture = tex;
+				_textureRect.Texture = tex;
+			}
+		}
 
 		Node n = GetParent();
 		while (n != null)
@@ -58,6 +77,20 @@ public partial class ChessHero : Control
 			_btnSkill.Pressed += OnSkillPressed;
 
 		UpdateSkillButtonVisibility();
+	}
+
+	/// <summary>由配置加载器设置形象路径，供 _Ready 时兜底加载</summary>
+	internal void SetPortraitPath(string path)
+	{
+		PortraitPath = path;
+	}
+
+	/// <summary>运行时设置立绘（与导出 PortraitTexture 二选一，用于同一场景不同资源）</summary>
+	public void SetPortrait(Texture2D texture)
+	{
+		PortraitTexture = texture;
+		if (_textureRect != null)
+			_textureRect.Texture = texture;
 	}
 
 	/// <summary>由 TestScene 在放置后调用，设置棋将序号以启用对应技能</summary>
@@ -178,7 +211,7 @@ public partial class ChessHero : Control
 					_board.ClearHighlight();
 					_board.SelectedHero = null;
 					_board.HideCancelButton();
-					int damage = _nextAttackDamageMultiplier;
+					int damage = Attack * _nextAttackDamageMultiplier;
 					_nextAttackDamageMultiplier = 1;
 					enemy.TakeDamage(damage);
 				}
@@ -193,11 +226,11 @@ public partial class ChessHero : Control
 				_board.ClearHighlight();
 				_board.SelectedHero = null;
 				_board.HideCancelButton();
-				// 目标格 + 上下左右共5格，每格1点伤害
+				// 目标格 + 上下左右共5格，每格 Attack 点伤害
 				var aoeCells = new List<(int row, int col)> { (row, col) };
 				foreach (var (nr, nc) in _board.GetNeighbourCells(row, col))
 					aoeCells.Add((nr, nc));
-				_board.ApplyDamageToCells(aoeCells, 1);
+				_board.ApplyDamageToCells(aoeCells, Attack);
 			}
 		}
 	}

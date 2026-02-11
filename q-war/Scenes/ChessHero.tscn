@@ -1,15 +1,15 @@
-[gd_scene load_steps=2 format=3 uid="uid://c2chesshero"]
+[gd_scene format=3 uid="uid://c2chesshero"]
 
-[ext_resource type="Script" path="res://Scripts/ChessHero.cs" id="1_script"]
+[ext_resource type="Script" uid="uid://dg1qsumxmpmbc" path="res://Scripts/ChessHero.cs" id="1_script"]
 
-[node name="ChessHero" type="Control"]
+[node name="ChessHero" type="Control" unique_id=847534537]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 64.0
 offset_bottom = 64.0
 script = ExtResource("1_script")
 
-[node name="ColorRect" type="ColorRect" parent="."]
+[node name="TextureRect" type="TextureRect" parent="." unique_id=2068024096]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -18,38 +18,41 @@ offset_left = 2.0
 offset_top = 2.0
 offset_right = -2.0
 offset_bottom = -2.0
-color = Color(0.2, 0.4, 0.9, 1)
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 5
 
-[node name="ActionPopup" type="PopupPanel" parent="."]
+[node name="ActionPopup" type="PopupPanel" parent="." unique_id=1478239950]
 size = Vector2i(160, 120)
-script = null
 
-[node name="Margin" type="MarginContainer" parent="ActionPopup"]
-layout_mode = 1
+[node name="Margin" type="MarginContainer" parent="ActionPopup" unique_id=1521710667]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = -8.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 156.0
+offset_bottom = 116.0
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_constants/margin_left = 8
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="VBox" type="VBoxContainer" parent="ActionPopup/Margin"]
+[node name="VBox" type="VBoxContainer" parent="ActionPopup/Margin" unique_id=902607455]
 layout_mode = 2
 
-[node name="Move" type="Button" parent="ActionPopup/Margin/VBox"]
+[node name="Move" type="Button" parent="ActionPopup/Margin/VBox" unique_id=997495015]
 layout_mode = 2
 text = "移动"
 
-[node name="Attack" type="Button" parent="ActionPopup/Margin/VBox"]
+[node name="Attack" type="Button" parent="ActionPopup/Margin/VBox" unique_id=565474559]
 layout_mode = 2
 text = "攻击"
 
-[node name="Skill" type="Button" parent="ActionPopup/Margin/VBox"]
-layout_mode = 2
+[node name="Skill" type="Button" parent="ActionPopup/Margin/VBox" unique_id=1968593399]
 visible = false
+layout_mode = 2
 text = "技能"
