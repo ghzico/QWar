@@ -32,19 +32,21 @@ public partial class FightBoard : Control
 		CustomMinimumSize = new Vector2(BoardCols * CellSizePx, BoardRows * CellSizePx);
 		BuildCells();
 
-		// 点击层：接收格子点击（尺寸与棋盘一致）
+		// 点击层：置于最上层以接收格子点击，尺寸与棋盘一致，不绘制任何内容
 		var boardSize = new Vector2(BoardCols * CellSizePx, BoardRows * CellSizePx);
 		_clickLayer = new Control
 		{
+			Position = Vector2.Zero,
 			Size = boardSize,
 			CustomMinimumSize = boardSize,
-			MouseFilter = Control.MouseFilterEnum.Stop
+			MouseFilter = Control.MouseFilterEnum.Stop,
+			ZIndex = 10
 		};
 		_clickLayer.GuiInput += OnClickLayerInput;
 
 		_highlightContainer = new Control { MouseFilter = Control.MouseFilterEnum.Ignore };
 		AddChild(_highlightContainer);
-		AddChild(_clickLayer);
+		AddChild(_clickLayer); // 最后添加，保证在最上层，点击由此处统一处理
 
 		// 统一行动取消按钮：在移动/攻击/技能选目标时显示，点击后取消当前操作
 		_cancelButton = new Button
@@ -124,16 +126,54 @@ public partial class FightBoard : Control
 		if (_cellsContainer == null || _cellsContainer == this)
 			return;
 
+		IReadOnlyDictionary<int, string>? cellResources = null;
+		int[,]? grid = null;
+		try
+		{
+			cellResources = MapConfigLoader.LoadMapCellResources();
+			grid = MapConfigLoader.LoadMapGrid();
+		}
+		catch (Exception ex)
+		{
+			GD.PushWarning($"地图配置加载失败，使用默认格子: {ex.Message}");
+		}
+
 		for (int r = 0; r < BoardRows; r++)
 		for (int c = 0; c < BoardCols; c++)
 		{
-			var rect = new ColorRect
+			int cellId = (grid != null && r < 5 && c < 10) ? grid[r, c] : 0;
+			Texture2D? tex = null;
+			if (cellId != 0 && cellResources != null && cellResources.TryGetValue(cellId, out string path))
 			{
-				Size = new Vector2(CellSizePx - 2, CellSizePx - 2),
-				Position = GetCellPosition(r, c) + new Vector2(1, 1),
-				Color = (r + c) % 2 == 0 ? new Color(0.3f, 0.5f, 0.3f) : new Color(0.2f, 0.4f, 0.2f)
-			};
-			_cellsContainer.AddChild(rect);
+				tex = GD.Load<Texture2D>(path);
+				if (tex == null)
+					GD.PushWarning($"地图格贴图加载失败: {path}");
+			}
+
+			if (tex != null)
+			{
+				var texRect = new TextureRect
+				{
+					Size = new Vector2(CellSizePx - 2, CellSizePx - 2),
+					Position = GetCellPosition(r, c) + new Vector2(1, 1),
+					ExpandMode = TextureRect.ExpandModeEnum.FitWidthProportional,
+					StretchMode = TextureRect.StretchModeEnum.KeepAspectCovered,
+					Texture = tex,
+					MouseFilter = Control.MouseFilterEnum.Ignore
+				};
+				_cellsContainer.AddChild(texRect);
+			}
+			else
+			{
+				var rect = new ColorRect
+				{
+					Size = new Vector2(CellSizePx - 2, CellSizePx - 2),
+					Position = GetCellPosition(r, c) + new Vector2(1, 1),
+					Color = (r + c) % 2 == 0 ? new Color(0.3f, 0.5f, 0.3f) : new Color(0.2f, 0.4f, 0.2f),
+					MouseFilter = Control.MouseFilterEnum.Ignore
+				};
+				_cellsContainer.AddChild(rect);
+			}
 		}
 	}
 
