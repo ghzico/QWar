@@ -60,6 +60,8 @@ public static class GeneralConfigLoader
 					int attackRange = ParseInt(row[2]);
 					int moveRange = ParseInt(row[3]);
 					string portraitPath = (row[4]?.ToString() ?? "").Trim();
+					int ghp = row.ItemArray.Length >= 6 ? ParseInt(row[5]) : 1;
+					if (ghp < 1) ghp = 1;
 
 					result[id] = new HeroConfig
 					{
@@ -67,7 +69,8 @@ public static class GeneralConfigLoader
 						Attack = attack,
 						AttackRange = attackRange,
 						MoveRange = moveRange,
-						PortraitPath = portraitPath
+						PortraitPath = portraitPath,
+						GHp = ghp
 					};
 				}
 				catch (System.Exception ex)
@@ -97,6 +100,7 @@ public static class GeneralConfigLoader
 		hero.Attack = config.Attack;
 		hero.AttackRange = config.AttackRange;
 		hero.MoveRange = config.MoveRange;
+		hero.SetInitialHp(config.GHp);
 		if (!string.IsNullOrWhiteSpace(config.PortraitPath))
 		{
 			string path = NormalizeResourcePath(config.PortraitPath);

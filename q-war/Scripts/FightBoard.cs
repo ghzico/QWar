@@ -16,6 +16,13 @@ public partial class FightBoard : Control
 	/// <summary>当前选中等待选目标的棋将（移动/攻击）</summary>
 	public ChessHero? SelectedHero { get; set; }
 
+	/// <summary>当前是否为我方回合</summary>
+	public bool IsPlayerTurn => _isPlayerTurn;
+	/// <summary>本回合剩余行为次数（我方回合时有效）</summary>
+	public int ActionsRemainingThisTurn => _actionsRemainingThisTurn;
+
+	private bool _isPlayerTurn = true;
+	private int _actionsRemainingThisTurn = 2;
 	private readonly Dictionary<(int row, int col), Node> _gridUnits = new();
 	private Control _cellsContainer = null!;
 	private Control _unitsContainer = null!;
@@ -91,9 +98,107 @@ public partial class FightBoard : Control
 				return;
 			}
 			var unit = GetUnitAt(r, c);
-			if (unit is ChessHero hero)
+			if (unit is ChessHero hero && _isPlayerTurn && _actionsRemainingThisTurn > 0)
 				hero.ShowActionPopup();
 		}
+	}
+
+	/// <summary>我方完成一次行为（移动/攻击/技能）后调用；剩余次数减 1，若为 0 则切换怪物回合</summary>
+	public void ConsumePlayerAction()
+	{
+		if (!_isPlayerTurn || _actionsRemainingThisTurn <= 0) return;
+		_actionsRemainingThisTurn--;
+		if (_actionsRemainingThisTurn <= 0)
+			RunMonsterTurn();
+	}
+
+	/// <summary>怪物方回合：每只怪物执行最多 2 次行为（攻击或移动），完成后切回我方回合</summary>
+	private void RunMonsterTurn()
+	{
+		_isPlayerTurn = false;
+		_actionsRemainingThisTurn = 0;
+
+		var enemies = new List<(int row, int col, ChessEnemy enemy)>();
+		foreach (var kv in _gridUnits)
+		{
+			if (kv.Value is ChessEnemy enemy && enemy.IsAlive)
+				enemies.Add((kv.Key.row, kv.Key.col, enemy));
+		}
+		foreach (var (row, col, enemy) in enemies)
+		{
+			if (!enemy.IsAlive) continue;
+			RunMonsterAi(enemy, row, col, 2);
+		}
+
+		_isPlayerTurn = true;
+		_actionsRemainingThisTurn = 2;
+	}
+
+	/// <summary>单只怪物 AI：最多 actionsLeft 次行为，每次为攻击（伤害 1）或移动一格</summary>
+	private void RunMonsterAi(ChessEnemy monster, int monsterRow, int monsterCol, int actionsLeft)
+	{
+		for (int i = 0; i < actionsLeft; i++)
+		{
+			var hero = GetNearestAliveHero(monsterRow, monsterCol);
+			if (hero == null) break;
+
+			int hr = hero.GridRow, hc = hero.GridCol;
+			int dist = ManhattanDistance(monsterRow, monsterCol, hr, hc);
+			if (dist <= 1)
+			{
+				hero.TakeDamage(1);
+				if (!hero.IsAlive) return;
+				continue;
+			}
+			var step = GetStepToward(monsterRow, monsterCol, hr, hc);
+			if (step != null)
+			{
+				MoveUnit(monsterRow, monsterCol, step.Value.row, step.Value.col);
+				monsterRow = step.Value.row;
+				monsterCol = step.Value.col;
+			}
+		}
+	}
+
+	/// <summary>获取距离 (row,col) 曼哈顿距离最近的存活棋将；等距时按行列序取一</summary>
+	public ChessHero? GetNearestAliveHero(int row, int col)
+	{
+		ChessHero? nearest = null;
+		int minDist = int.MaxValue;
+		foreach (var kv in _gridUnits)
+		{
+			if (kv.Value is ChessHero hero && hero.IsAlive)
+			{
+				int d = ManhattanDistance(row, col, hero.GridRow, hero.GridCol);
+				if (d < minDist)
+				{
+					minDist = d;
+					nearest = hero;
+				}
+				else if (d == minDist && nearest != null && (hero.GridRow < nearest.GridRow || (hero.GridRow == nearest.GridRow && hero.GridCol < nearest.GridCol)))
+					nearest = hero;
+			}
+		}
+		return nearest;
+	}
+
+	/// <summary>从 (fromR,fromC) 向 (toR,toC) 移动一格的合法空格；若无则返回 null</summary>
+	private (int row, int col)? GetStepToward(int fromR, int fromC, int toR, int toC)
+	{
+		var neighbours = GetNeighbourCells(fromR, fromC);
+		(int row, int col)? best = null;
+		int bestDist = int.MaxValue;
+		foreach (var (nr, nc) in neighbours)
+		{
+			if (GetUnitAt(nr, nc) != null) continue;
+			int d = ManhattanDistance(nr, nc, toR, toC);
+			if (d < bestDist)
+			{
+				bestDist = d;
+				best = (nr, nc);
+			}
+		}
+		return best;
 	}
 
 	/// <summary>高亮一组格子（用于移动/攻击目标）</summary>

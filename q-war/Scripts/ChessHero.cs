@@ -27,7 +27,15 @@ public partial class ChessHero : Control
 	/// <summary>形象资源路径（由配置加载器设置，_Ready 时若尚无贴图会用此路径再加载一次以确保显示）</summary>
 	internal string? PortraitPath { get; private set; }
 
+	/// <summary>当前血量</summary>
+	public int Hp => _hp;
+	/// <summary>是否存活</summary>
+	public bool IsAlive => _hp > 0;
+
+	private int _hp = 1;
+	private int _maxHp = 1;
 	private TextureRect _textureRect = null!;
+	private Label? _hpLabel;
 	private FightBoard _board = null!;
 	private PopupPanel _actionPopup = null!;
 	private Button _btnMove = null!;
@@ -66,6 +74,7 @@ public partial class ChessHero : Control
 		if (_board == null)
 			_board = GetTree().CurrentScene?.GetNode<FightBoard>("MainVBox/BoardCenter/FightBoard")!;
 
+		_hpLabel = GetNodeOrNull<Label>("HpLabel");
 		_actionPopup = GetNode<PopupPanel>("ActionPopup");
 		_btnMove = GetNode<Button>("ActionPopup/Margin/VBox/Move");
 		_btnAttack = GetNode<Button>("ActionPopup/Margin/VBox/Attack");
@@ -77,6 +86,42 @@ public partial class ChessHero : Control
 			_btnSkill.Pressed += OnSkillPressed;
 
 		UpdateSkillButtonVisibility();
+		UpdateHpDisplay();
+	}
+
+	/// <summary>设置初始/最大血量（由 GeneralConfigLoader.ApplyToHero 调用）</summary>
+	public void SetInitialHp(int maxHp)
+	{
+		_maxHp = maxHp < 1 ? 1 : maxHp;
+		_hp = _maxHp;
+		UpdateHpDisplay();
+	}
+
+	/// <summary>受到伤害；血量为 0 时从棋盘移除并 QueueFree</summary>
+	public void TakeDamage(int amount)
+	{
+		_hp = Math.Max(0, _hp - amount);
+		UpdateHpDisplay();
+		if (!IsAlive)
+		{
+			Node? n = GetParent();
+			while (n != null)
+			{
+				if (n is FightBoard board)
+				{
+					board.RemoveUnitAt(GridRow, GridCol);
+					break;
+				}
+				n = n.GetParent();
+			}
+			QueueFree();
+		}
+	}
+
+	private void UpdateHpDisplay()
+	{
+		if (_hpLabel != null)
+			_hpLabel.Text = _hp.ToString();
 	}
 
 	/// <summary>由配置加载器设置形象路径，供 _Ready 时兜底加载</summary>
@@ -197,6 +242,7 @@ public partial class ChessHero : Control
 				_board.SelectedHero = null;
 				_board.HideCancelButton();
 				_board.MoveUnit(GridRow, GridCol, row, col);
+				_board.ConsumePlayerAction();
 			}
 		}
 		else if (_waitingAttackTarget)
@@ -214,6 +260,7 @@ public partial class ChessHero : Control
 					int damage = Attack * _nextAttackDamageMultiplier;
 					_nextAttackDamageMultiplier = 1;
 					enemy.TakeDamage(damage);
+					_board.ConsumePlayerAction();
 				}
 			}
 		}
@@ -231,6 +278,7 @@ public partial class ChessHero : Control
 				foreach (var (nr, nc) in _board.GetNeighbourCells(row, col))
 					aoeCells.Add((nr, nc));
 				_board.ApplyDamageToCells(aoeCells, Attack);
+				_board.ConsumePlayerAction();
 			}
 		}
 	}

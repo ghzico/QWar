@@ -22,7 +22,8 @@
 ### 2.2 配置表 General.xlsx
 
 - **路径**：`res://config/General.xlsx`。
-- **表头（第 1 行）**：`ID`、`攻击力`、`攻击距离`、`移动距离`、`形象配置`。
+- **表头（第 1 行）**：`ID`、`攻击力`、`攻击距离`、`移动距离`、`形象配置`、`血量`（或 `GHp`）。
+- **血量（GHp）**：第 6 列，表示棋将初始血量；缺列或无效时默认 1。建议每行填写正整数。
 - **数据行**：从第 2 行起，每行对应一个棋将配置；`ID` 为唯一标识，在代码中通过 ID 加载对应行。
 - **形象配置**：填写贴图路径。支持：
   - 完整路径：`res://Res/General/knight.png`
@@ -30,13 +31,13 @@
 
 ### 2.3 数据与 API
 
-- **HeroConfig**（`Scripts/HeroConfig.cs`）：`Id`、`Attack`、`AttackRange`、`MoveRange`、`PortraitPath`。
+- **HeroConfig**（`Scripts/HeroConfig.cs`）：`Id`、`Attack`、`AttackRange`、`MoveRange`、`PortraitPath`、`GHp`（血量）。
 - **GeneralConfigLoader**（`Scripts/GeneralConfigLoader.cs`）：
   - `LoadHeroConfigs()`：返回 `IReadOnlyDictionary<int, HeroConfig>`，键为表格中的 ID。
-  - `ApplyToHero(ChessHero hero, int configId, configs = null)`：根据 configId 从配置中读取并应用到棋将（攻击力、攻击距离、移动距离、立绘）；可选传入已加载的 configs 避免重复读表。
+  - `ApplyToHero(ChessHero hero, int configId, configs = null)`：根据 configId 从配置中读取并应用到棋将（攻击力、攻击距离、移动距离、立绘、初始血量）；可选传入已加载的 configs 避免重复读表。
 - **ChessHero**：
-  - 属性：`Attack`、`MoveRange`、`AttackRange`、`PortraitTexture`、内部 `PortraitPath`。
-  - 方法：`SetPortrait(Texture2D)`、内部 `SetPortraitPath(string)`。`_Ready` 中若已有 `PortraitTexture` 则绑定到 TextureRect，否则用 `PortraitPath` 再加载一次，确保入树后立绘正确显示。
+  - 属性：`Attack`、`MoveRange`、`AttackRange`、`PortraitTexture`、内部 `PortraitPath`；`Hp`、`IsAlive`（血量与存活状态）。
+  - 方法：`SetPortrait(Texture2D)`、内部 `SetPortraitPath(string)`；`SetInitialHp(int maxHp)`（由 ApplyToHero 设置血量）；`TakeDamage(int amount)`（受击扣血，血量为 0 时从棋盘移除）。`_Ready` 中若已有 `PortraitTexture` 则绑定到 TextureRect，否则用 `PortraitPath` 再加载一次，确保入树后立绘正确显示；场景中 `HpLabel` 显示当前血量。
 
 ### 2.4 使用约定
 
@@ -117,5 +118,6 @@
 3. **地图配置**：MapCell.xlsx 提供 MAPCELLID→MAPCELLRES；Map.xlsx 从“分号分隔”改为“每格一个 MAPCELLID”的 5 行×11 列格式；MapConfigLoader 路径规范化避免 Res/Map 重复前缀；FightBoard BuildCells 用贴图绘制格子，失败时回退 ColorRect，并 try-catch 保证点击层与棋盘始终可用。
 4. **编码**：MapConfigLoader 与 GeneralConfigLoader 静态构造函数中注册 CodePagesEncodingProvider，消除 Excel 读取时的 encoding 1252 错误。
 5. **点击与层级**：所有地图格 MouseFilter = Ignore；点击层 ZIndex = 10、最后添加，保证棋将可被选中与操作。
+6. **回合与棋将血量**：General.xlsx 新增「血量」/「GHp」列；棋将拥有血量并从配置读取初始值，可被怪物攻击扣血（伤害 1），血量为 0 时移除。我方与怪物方轮流回合，每回合每方 2 次行为（每次为一次移动或一次攻击）；怪物 AI 以最近棋将为目标，能攻击则攻击否则移动一格。
 
 以上约定与实现均已在当前代码与资源结构中落地，后续扩展新棋将、新地图或新 MAPCELL 类型时，只需在对应 Excel 中增行/增列并在代码中引用对应 ID 即可。
