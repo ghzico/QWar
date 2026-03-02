@@ -1,0 +1,58 @@
+[gd_scene load_steps=2 format=3 uid="uid://battle_result_panel"]
+
+[ext_resource type="Script" path="res://Scripts/BattleResultPanel.cs" id="1_script"]
+
+[node name="BattleResultPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.6)
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "战斗胜利！"
+horizontal_alignment = 1
+
+[node name="ResultTexture" type="TextureRect" parent="CenterContainer/VBox"]
+custom_minimum_size = Vector2(200, 120)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ButtonsHBox" type="HBoxContainer" parent="CenterContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="RetryButton" type="Button" parent="CenterContainer/VBox/ButtonsHBox"]
+layout_mode = 2
+text = "重新挑战"
+
+[node name="BackToMenuButton" type="Button" parent="CenterContainer/VBox/ButtonsHBox"]
+layout_mode = 2
+text = "回到主菜单"

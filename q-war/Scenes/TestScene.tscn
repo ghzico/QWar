@@ -30,7 +30,7 @@ theme_override_constants/separation = 12
 custom_minimum_size = Vector2(500, 50)
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "规则说明：从下方棋将包拖拽棋将到地图第1或第2列布阵，点击「确认出战」开始战斗；
+text = "规则说明：从下方棋将包拖拽棋将到地图第0或第1列（最左侧两列）布阵，点击「确认出战」开始战斗；
 战斗中点击我方棋子可选择攻击、移动或技能；攻击/技能会高亮所有可攻击范围，仅格内有敌将时可执行。"
 autowrap_mode = 2
 

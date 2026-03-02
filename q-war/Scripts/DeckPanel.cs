@@ -100,10 +100,10 @@ public partial class DeckPanel : Control
 		Visible = false;
 	}
 
-	/// <summary>布阵阶段是否允许放置到指定格子（仅第 1、2 列且为空）</summary>
+	/// <summary>布阵阶段是否允许放置到指定格子（仅第 0、1 列即最左侧两列且为空）</summary>
 	public static bool IsValidDeployCell(FightBoard board, int row, int col)
 	{
-		if (col != 1 && col != 2) return false;
+		if (col != 0 && col != 1) return false;
 		return board.GetUnitAt(row, col) == null;
 	}
 

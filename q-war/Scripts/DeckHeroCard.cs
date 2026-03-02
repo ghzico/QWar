@@ -3,7 +3,7 @@ using Godot;
 namespace QWar;
 
 /// <summary>
-/// 棋将包内单个棋将卡片，支持拖拽到地图第 1/2 列。
+/// 棋将包内单个棋将卡片，支持拖拽到地图第 0/1 列（最左侧两列）。
 /// </summary>
 public partial class DeckHeroCard : PanelContainer
 {

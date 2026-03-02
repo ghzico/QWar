@@ -1,15 +1,15 @@
-[gd_scene load_steps=2 format=3 uid="uid://c2chessenemy"]
+[gd_scene format=3 uid="uid://c2chessenemy"]
 
-[ext_resource type="Script" path="res://Scripts/ChessEnemy.cs" id="1_script"]
+[ext_resource type="Script" uid="uid://bwnnjordni4ty" path="res://Scripts/ChessEnemy.cs" id="1_script"]
 
-[node name="ChessEnemy" type="Control"]
+[node name="ChessEnemy" type="Control" unique_id=904591857]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 64.0
 offset_bottom = 64.0
 script = ExtResource("1_script")
 
-[node name="TextureRect" type="TextureRect" parent="."]
+[node name="TextureRect" type="TextureRect" parent="." unique_id=127110044]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -18,24 +18,27 @@ offset_left = 2.0
 offset_top = 2.0
 offset_right = -2.0
 offset_bottom = -2.0
+grow_horizontal = 2
+grow_vertical = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1832308670]
 visible = false
 position = Vector2(32, 32)
-scale = Vector2(1, 1)
 
-[node name="Label" type="Label" parent="."]
+[node name="Label" type="Label" parent="." unique_id=1137436]
 layout_mode = 1
-anchors_preset = 12
+anchors_preset = 14
 anchor_top = 0.5
+anchor_right = 1.0
 anchor_bottom = 0.5
 offset_left = 8.0
 offset_top = -12.0
 offset_right = 56.0
 offset_bottom = 12.0
-grow_vertical = 1
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_font_sizes/font_size = 18
 text = "10"
 horizontal_alignment = 1

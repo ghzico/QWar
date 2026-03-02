@@ -3,7 +3,7 @@ using Godot;
 namespace QWar;
 
 /// <summary>
-/// 测试场景：5 行 10 列棋盘；先进入布阵阶段，从棋将包拖拽棋将到第 1/2 列，确认出战后开始战斗。
+/// 测试场景：5 行 10 列棋盘；先进入布阵阶段，从棋将包拖拽棋将到第 0/1 列（最左侧两列），确认出战后开始战斗。
 /// 棋将包从 config/General.xlsx 加载；敌将固定放置于右侧。
 /// </summary>
 public partial class TestScene : Control

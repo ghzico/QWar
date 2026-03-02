@@ -40,6 +40,7 @@ public partial class FightBoard : Control
 	private Control _highlightContainer = null!;
 	private readonly List<ColorRect> _highlightRects = new();
 	private Button _cancelButton = null!;
+	private bool _battleResultShown;
 
 	public override void _Ready()
 	{
@@ -375,6 +376,45 @@ public partial class FightBoard : Control
 			existing.GetParent()?.RemoveChild(existing);
 			_gridUnits.Remove((row, col));
 		}
+		CallDeferred(MethodName.CheckBattleResult);
+	}
+
+	/// <summary>检测胜负：无怪物→胜利；有怪物且无存活棋将→失败；满足时显示结果界面并屏蔽棋盘操作。</summary>
+	private void CheckBattleResult()
+	{
+		if (_battleResultShown || _isDeploymentPhase) return;
+
+		int enemyCount = 0;
+		int heroCount = 0;
+		foreach (var unit in _gridUnits.Values)
+		{
+			if (unit is ChessEnemy) enemyCount++;
+			else if (unit is ChessHero hero && hero.IsAlive) heroCount++;
+		}
+
+		if (enemyCount == 0)
+		{
+			ShowBattleResult(isVictory: true);
+			return;
+		}
+		if (heroCount == 0)
+		{
+			ShowBattleResult(isVictory: false);
+		}
+	}
+
+	private void ShowBattleResult(bool isVictory)
+	{
+		_battleResultShown = true;
+		_clickLayer.MouseFilter = Control.MouseFilterEnum.Ignore;
+
+		var scene = GD.Load<PackedScene>("res://Scenes/BattleResultPanel.tscn");
+		var panel = scene.Instantiate<BattleResultPanel>();
+		GetTree().CurrentScene.AddChild(panel);
+		if (isVictory)
+			panel.ShowVictory();
+		else
+			panel.ShowDefeat();
 	}
 
 	public Node? GetUnitAt(int row, int col)
@@ -473,7 +513,7 @@ public partial class FightBoard : Control
 		if (DeckPanel.IsDeployed(configId)) return false;
 		int c = (int)(atPosition.X / CellSizePx);
 		int r = (int)(atPosition.Y / CellSizePx);
-		if (!IsInBounds(r, c) || (c != 1 && c != 2)) return false;
+		if (!IsInBounds(r, c) || (c != 0 && c != 1)) return false;
 		return GetUnitAt(r, c) == null;
 	}
 
@@ -483,7 +523,7 @@ public partial class FightBoard : Control
 		int configId = data.AsInt32();
 		int col = (int)(atPosition.X / CellSizePx);
 		int row = (int)(atPosition.Y / CellSizePx);
-		if (!IsInBounds(row, col) || (col != 1 && col != 2) || GetUnitAt(row, col) != null)
+		if (!IsInBounds(row, col) || (col != 0 && col != 1) || GetUnitAt(row, col) != null)
 			return;
 		if (DeckPanel == null || DeckPanel.IsDeployed(configId)) return;
 
