@@ -16,6 +16,15 @@ public partial class FightBoard : Control
 	/// <summary>当前选中等待选目标的棋将（移动/攻击）</summary>
 	public ChessHero? SelectedHero { get; set; }
 
+	/// <summary>棋将包 UI，布阵时由 TestScene 设置；用于拖拽放置后标记已上场</summary>
+	public DeckPanel? DeckPanel { get; set; }
+
+	/// <summary>是否处于布阵阶段（未点击确认出战前为 true，不启动回合与怪物 AI）</summary>
+	public bool IsDeploymentPhase => _isDeploymentPhase;
+
+	private bool _isDeploymentPhase;
+	private int _deployedHeroCount;
+
 	/// <summary>当前是否为我方回合</summary>
 	public bool IsPlayerTurn => _isPlayerTurn;
 	/// <summary>本回合剩余行为次数（我方回合时有效）</summary>
@@ -41,7 +50,7 @@ public partial class FightBoard : Control
 
 		// 点击层：置于最上层以接收格子点击，尺寸与棋盘一致，不绘制任何内容
 		var boardSize = new Vector2(BoardCols * CellSizePx, BoardRows * CellSizePx);
-		_clickLayer = new Control
+		_clickLayer = new BoardDropZone(this)
 		{
 			Position = Vector2.Zero,
 			Size = boardSize,
@@ -79,6 +88,18 @@ public partial class FightBoard : Control
 		_cancelButton.Visible = false;
 	}
 
+	/// <summary>进入布阵阶段（由 TestScene 在显示棋将包时调用；未确认出战前不启动回合）</summary>
+	public void EnterDeploymentPhase()
+	{
+		_isDeploymentPhase = true;
+	}
+
+	/// <summary>确认出战，结束布阵阶段并开始战斗（我方回合开始）</summary>
+	public void StartBattle()
+	{
+		_isDeploymentPhase = false;
+	}
+
 	private void OnCancelActionPressed()
 	{
 		SelectedHero?.CancelTargetMode();
@@ -98,7 +119,7 @@ public partial class FightBoard : Control
 				return;
 			}
 			var unit = GetUnitAt(r, c);
-			if (unit is ChessHero hero && _isPlayerTurn && _actionsRemainingThisTurn > 0)
+			if (unit is ChessHero hero && !_isDeploymentPhase && _isPlayerTurn && _actionsRemainingThisTurn > 0)
 				hero.ShowActionPopup();
 		}
 	}
@@ -347,7 +368,7 @@ public partial class FightBoard : Control
 	public static int ManhattanDistance(int r1, int c1, int r2, int c2)
 		=> Math.Abs(r2 - r1) + Math.Abs(c2 - c1);
 
-	/// <summary>获取距离 (row,col) 曼哈顿距离 &lt;= range 且在范围内的所有格子（不含自身）</summary>
+	/// <summary>获取距离 (row,col) 曼哈顿距离 &lt;= range 且在范围内的所有格子（不含自身）。供移动/攻击/技能范围高亮使用。</summary>
 	public List<(int row, int col)> GetCellsWithinRange(int row, int col, int range)
 	{
 		var list = new List<(int row, int col)>();
@@ -405,5 +426,38 @@ public partial class FightBoard : Control
 			if (GetUnitAt(r, c) is ChessEnemy enemy)
 				enemy.TakeDamage(damage);
 		}
+	}
+
+	/// <summary>布阵阶段拖放：是否可在此位置放置指定棋将（供 BoardDropZone 调用）</summary>
+	internal bool CanDropDataAt(Vector2 atPosition, Variant data)
+	{
+		if (!_isDeploymentPhase || DeckPanel == null) return false;
+		if (data.VariantType != Variant.Type.Int && data.VariantType != Variant.Type.Float) return false;
+		int configId = data.AsInt32();
+		if (DeckPanel.IsDeployed(configId)) return false;
+		int c = (int)(atPosition.X / CellSizePx);
+		int r = (int)(atPosition.Y / CellSizePx);
+		if (!IsInBounds(r, c) || (c != 1 && c != 2)) return false;
+		return GetUnitAt(r, c) == null;
+	}
+
+	/// <summary>布阵阶段拖放：在指定位置放置棋将（供 BoardDropZone 调用）</summary>
+	internal void DropDataAt(Vector2 atPosition, Variant data)
+	{
+		int configId = data.AsInt32();
+		int col = (int)(atPosition.X / CellSizePx);
+		int row = (int)(atPosition.Y / CellSizePx);
+		if (!IsInBounds(row, col) || (col != 1 && col != 2) || GetUnitAt(row, col) != null)
+			return;
+		if (DeckPanel == null || DeckPanel.IsDeployed(configId)) return;
+
+		var heroScene = GD.Load<PackedScene>("res://Scenes/ChessHero.tscn");
+		var hero = heroScene.Instantiate<ChessHero>();
+		var configs = GeneralConfigLoader.LoadHeroConfigs();
+		if (!GeneralConfigLoader.ApplyToHero(hero, configId, configs))
+			GD.PushWarning($"棋将配置 ID {configId} 在 General.xlsx 中未找到。");
+		hero.SetHeroIndex(_deployedHeroCount++);
+		PlaceUnit(hero, row, col);
+		DeckPanel.MarkDeployed(configId);
 	}
 }

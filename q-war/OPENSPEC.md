@@ -44,6 +44,11 @@
 - 修改表格中某 ID 的数值或形象后，重新运行即可生效；新增棋将时在表内新加一行并赋予新 ID，在关卡/测试场景中指定该 ID 即可。
 - 测试场景中通过静态数组 `HeroConfigIds`（如 `{ 1, 2, 3 }`）指定本场出战的棋将 ID，实例化后调用 `ApplyToHero(hero, configId)` 完成绑定。
 
+### 2.5 棋将包（Deck）数据来源
+
+- **棋将包**：战斗前布阵阶段在战斗场面下方显示的棋将包，其可选棋将列表从 `GeneralConfigLoader.LoadHeroConfigs()` 加载，即 `config/General.xlsx` 全表；每行配置对应一个可拖拽上场的棋将选项。
+- 若后续需「本关可用棋将」子集，可在关卡配置中增加 ID 列表，布阵时对 `LoadHeroConfigs()` 结果按 ID 过滤即可。
+
 ---
 
 ## 3. 敌将（ChessEnemy）

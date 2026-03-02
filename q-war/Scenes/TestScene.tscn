@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://iornfahtg2h6" path="res://Scripts/TestScene.cs" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://c2fightboard" path="res://Scenes/FightBoard.tscn" id="2_fightboard"]
+[ext_resource type="Script" path="res://Scripts/DeckPanel.cs" id="3_deck"]
 
 [node name="TestScene" type="Control" unique_id=938051230]
 layout_mode = 3
@@ -29,9 +30,8 @@ theme_override_constants/separation = 12
 custom_minimum_size = Vector2(500, 50)
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "规则说明：点击我方棋子，可选择攻击、移动或使用技能；
-普通攻击造成1点伤害；
-2#棋子技能可造成十字范围伤害1点；3#棋子技能可令下次攻击伤害增加2点。"
+text = "规则说明：从下方棋将包拖拽棋将到地图第1或第2列布阵，点击「确认出战」开始战斗；
+战斗中点击我方棋子可选择攻击、移动或技能；攻击/技能会高亮所有可攻击范围，仅格内有敌将时可执行。"
 autowrap_mode = 2
 
 [node name="BoardCenter" type="CenterContainer" parent="MainVBox" unique_id=534191206]
@@ -40,3 +40,7 @@ size_flags_vertical = 3
 
 [node name="FightBoard" parent="MainVBox/BoardCenter" unique_id=1534923173 instance=ExtResource("2_fightboard")]
 layout_mode = 2
+
+[node name="DeckPanel" type="Control" parent="MainVBox"]
+layout_mode = 2
+script = ExtResource("3_deck")

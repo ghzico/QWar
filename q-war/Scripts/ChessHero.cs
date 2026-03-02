@@ -193,7 +193,8 @@ public partial class ChessHero : Control
 		_waitingAttackTarget = false;
 		_board.SelectedHero = this;
 		_board.ShowCancelButton();
-		var list = _board.GetEnemyCellsInAttackRange(GridRow, GridCol, AttackRange);
+		// 高亮所有技能攻击距离内的格子；执行时仅格内有敌将才生效
+		var list = _board.GetCellsWithinRange(GridRow, GridCol, AttackRange);
 		_board.SetHighlightCells(list);
 	}
 
@@ -222,7 +223,8 @@ public partial class ChessHero : Control
 		_waitingSkillAoeTarget = false;
 		_board.SelectedHero = this;
 		_board.ShowCancelButton();
-		var list = GetAttackableEnemyCells();
+		// 高亮所有攻击距离内的格子；执行时仍仅格内有敌将才生效
+		var list = _board.GetCellsWithinRange(GridRow, GridCol, AttackRange);
 		_board.SetHighlightCells(list);
 	}
 
