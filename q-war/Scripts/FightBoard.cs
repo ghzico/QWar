@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace QWar;
 
@@ -130,11 +131,11 @@ public partial class FightBoard : Control
 		if (!_isPlayerTurn || _actionsRemainingThisTurn <= 0) return;
 		_actionsRemainingThisTurn--;
 		if (_actionsRemainingThisTurn <= 0)
-			RunMonsterTurn();
+			RunMonsterTurnAsync();
 	}
 
-	/// <summary>怪物方回合：每只怪物执行最多 2 次行为（攻击或移动），完成后切回我方回合</summary>
-	private void RunMonsterTurn()
+	/// <summary>怪物方回合：每只怪物执行最多 2 次行为（攻击或移动），带动画时等待播完再继续</summary>
+	private async void RunMonsterTurnAsync()
 	{
 		_isPlayerTurn = false;
 		_actionsRemainingThisTurn = 0;
@@ -148,15 +149,15 @@ public partial class FightBoard : Control
 		foreach (var (row, col, enemy) in enemies)
 		{
 			if (!enemy.IsAlive) continue;
-			RunMonsterAi(enemy, row, col, 2);
+			await RunMonsterAiAsync(enemy, row, col, 2);
 		}
 
 		_isPlayerTurn = true;
 		_actionsRemainingThisTurn = 2;
 	}
 
-	/// <summary>单只怪物 AI：最多 actionsLeft 次行为，每次为攻击（伤害 1）或移动一格</summary>
-	private void RunMonsterAi(ChessEnemy monster, int monsterRow, int monsterCol, int actionsLeft)
+	/// <summary>单只怪物 AI：最多 actionsLeft 次行为；攻击时播 attack 并等待后扣血，移动时播 walk 并 Tween 位移</summary>
+	private async Task RunMonsterAiAsync(ChessEnemy monster, int monsterRow, int monsterCol, int actionsLeft)
 	{
 		for (int i = 0; i < actionsLeft; i++)
 		{
@@ -167,6 +168,19 @@ public partial class FightBoard : Control
 			int dist = ManhattanDistance(monsterRow, monsterCol, hr, hc);
 			if (dist <= 1)
 			{
+				if (monster.HasAnimation)
+				{
+					monster.PlayAttack();
+					var tcs = new TaskCompletionSource<bool>();
+					void OnAttackDone()
+					{
+						monster.AttackAnimationFinished -= OnAttackDone;
+						tcs.TrySetResult(true);
+					}
+					monster.AttackAnimationFinished += OnAttackDone;
+					GetTree().CreateTimer(2.0).Timeout += () => tcs.TrySetResult(true);
+					await tcs.Task;
+				}
 				hero.TakeDamage(1);
 				if (!hero.IsAlive) return;
 				continue;
@@ -174,11 +188,33 @@ public partial class FightBoard : Control
 			var step = GetStepToward(monsterRow, monsterCol, hr, hc);
 			if (step != null)
 			{
-				MoveUnit(monsterRow, monsterCol, step.Value.row, step.Value.col);
+				await MoveMonsterWithAnimationAsync(monster, monsterRow, monsterCol, step.Value.row, step.Value.col);
 				monsterRow = step.Value.row;
 				monsterCol = step.Value.col;
 			}
 		}
+	}
+
+	/// <summary>怪物移动：有动画时播 walk 并 Tween 位移，结束后更新格子并播 idle</summary>
+	private async Task MoveMonsterWithAnimationAsync(ChessEnemy monster, int fromRow, int fromCol, int toRow, int toCol)
+	{
+		if (!_gridUnits.TryGetValue((fromRow, fromCol), out var unit) || unit != monster)
+			return;
+
+		if (monster.HasAnimation)
+		{
+			monster.PlayWalk();
+			var tween = CreateTween();
+			tween.TweenProperty(monster, "position", GetCellPosition(toRow, toCol), 0.25f);
+			await ToSignal(tween, Tween.SignalName.Finished);
+		}
+
+		_gridUnits.Remove((fromRow, fromCol));
+		monster.Position = GetCellPosition(toRow, toCol);
+		_gridUnits[(toRow, toCol)] = monster;
+		monster.SetGridPosition(toRow, toCol);
+		if (monster.HasAnimation)
+			monster.PlayIdle();
 	}
 
 	/// <summary>获取距离 (row,col) 曼哈顿距离最近的存活棋将；等距时按行列序取一</summary>

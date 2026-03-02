@@ -26,10 +26,12 @@ public partial class TestScene : Control
 			GD.Load<Texture2D>("res://Res/Enemy/monster2.png"),
 			GD.Load<Texture2D>("res://Res/Enemy/monster3.png")
 		};
+		var slimeSets = new[] { "Slime1", "Slime2", "Slime3" };
 		for (int i = 0; i < 3; i++)
 		{
 			var enemy = enemyScene.Instantiate<ChessEnemy>();
 			enemy.SetPortrait(enemyTextures[i]);
+			enemy.SetAnimationSet(slimeSets[i]);
 			board.PlaceUnit(enemy, i, 9);
 		}
 	}
