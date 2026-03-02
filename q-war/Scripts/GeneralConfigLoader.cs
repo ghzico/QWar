@@ -8,11 +8,12 @@ using Godot;
 namespace QWar;
 
 /// <summary>
-/// 从 config/General.xlsx 加载棋将配置。
-/// 表头（第一行）：ID, 攻击力, 攻击距离, 移动距离, 形象配置
+/// 从 config/General.xlsx 或 config/general.json 加载棋将配置。
+/// 优先读取 general.json（由配置导出脚本生成）；不存在或解析失败时回退到 Excel。
 /// </summary>
 public static class GeneralConfigLoader
 {
+	private const string JsonPath = "res://config/general.json";
 	private const string ConfigPath = "res://config/General.xlsx";
 
 	static GeneralConfigLoader()
@@ -24,11 +25,65 @@ public static class GeneralConfigLoader
 	/// <summary>按 ID 索引的棋将配置。键为表格中的 ID 列。</summary>
 	public static IReadOnlyDictionary<int, HeroConfig> LoadHeroConfigs()
 	{
-		var result = new Dictionary<int, HeroConfig>();
+		if (TryLoadFromJson(out var fromJson))
+			return fromJson;
+		return LoadFromExcel();
+	}
 
+	private static bool TryLoadFromJson(out IReadOnlyDictionary<int, HeroConfig> result)
+	{
+		result = new Dictionary<int, HeroConfig>();
+		if (!Godot.FileAccess.FileExists(JsonPath))
+			return false;
+		try
+		{
+			using var file = Godot.FileAccess.Open(JsonPath, Godot.FileAccess.ModeFlags.Read);
+			if (file == null) return false;
+			string jsonText = file.GetAsText();
+			var opts = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+			var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, JsonHeroEntry>>(jsonText, opts);
+			if (dict == null) return false;
+			var outDict = new Dictionary<int, HeroConfig>();
+			foreach (var kv in dict)
+			{
+				if (!int.TryParse(kv.Key, out int id)) continue;
+				var e = kv.Value;
+				outDict[id] = new HeroConfig
+				{
+					Id = e.Id,
+					Attack = e.Attack,
+					AttackRange = e.AttackRange,
+					MoveRange = e.MoveRange,
+					PortraitPath = e.PortraitPath ?? "",
+					GHp = e.GHp > 0 ? e.GHp : 1
+				};
+			}
+			result = outDict;
+			return true;
+		}
+		catch (Exception ex)
+		{
+			GD.PushWarning($"读取 general.json 失败，将回退到 Excel: {ex.Message}");
+			return false;
+		}
+	}
+
+	private sealed class JsonHeroEntry
+	{
+		public int Id { get; set; }
+		public int Attack { get; set; }
+		public int AttackRange { get; set; }
+		public int MoveRange { get; set; }
+		public string? PortraitPath { get; set; }
+		public int GHp { get; set; }
+	}
+
+	private static IReadOnlyDictionary<int, HeroConfig> LoadFromExcel()
+	{
+		var result = new Dictionary<int, HeroConfig>();
 		if (!Godot.FileAccess.FileExists(ConfigPath))
 		{
-			GD.PushWarning($"配置不存在: {ConfigPath}");
+			GD.PushWarning($"配置不存在: {ConfigPath}，建议运行配置转换: python tools/export_config.py");
 			return result;
 		}
 
@@ -46,7 +101,6 @@ public static class GeneralConfigLoader
 				return result;
 
 			DataTable table = dataSet.Tables[0];
-			// 第 0 行为表头，从第 1 行开始为数据
 			for (int r = 1; r < table.Rows.Count; r++)
 			{
 				DataRow row = table.Rows[r];

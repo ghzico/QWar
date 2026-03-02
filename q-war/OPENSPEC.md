@@ -7,7 +7,7 @@
 ## 1. 概述
 
 - **设计原则**：棋将/敌将/地图格均衍生于同一节点类型，通过 **ID + 配置表** 决定显示与数值，实现数据与逻辑解耦。
-- **配置来源**：`config/General.xlsx`（棋将）、`config/Map.xlsx`（地图布局）、`config/MapCell.xlsx`（地图格贴图路径）。
+- **配置来源**：优先从 `config/*.json` 加载（由配置导出脚本或 Luban 生成）；不存在时回退到 `config/General.xlsx`、`config/Map.xlsx`、`config/MapCell.xlsx`。
 - **资源目录**：`Res/General/`（棋将立绘）、`Res/Enemy/`（敌将立绘）、`Res/Map/`（地图格贴图）。
 
 ---
@@ -90,7 +90,18 @@
 
 ---
 
-## 5. 编码与依赖
+## 5. 配置导出与 JSON（工具链）
+
+- **约定**：Excel 为策划编辑源；运行时 **优先读取** `config/general.json`、`config/map_cell.json`、`config/map_grid.json`，不存在或解析失败时 **回退** 到对应 xlsx。
+- **JSON 结构**：见 `tools/README_config_export.md`。general 为「ID → 棋将配置」对象；map_cell 为「MAPCELLID → 贴图路径」对象；map_grid 为 5×10 二维数组。
+- **转换方式**：
+  - **Python 脚本**（推荐，无需改表）：安装 `pip install -r tools/requirements.txt` 后执行 `python tools/export_config.py`，从当前格式的 Excel 生成上述 json 到 `config/`。
+  - **Luban**（可选，适合扩展与校验）：需将 Excel 改为 Luban 格式（首行 ##var、次行 ##type）；配置见 `tools/luban/README.md` 与 `gen.bat`，输出需与 `README_config_export.md` 约定一致。
+- **何时执行**：资源更新或打包前请执行一次配置转换，确保 `config/*.json` 存在；未执行时游戏仍可从 Excel 正常加载。
+
+---
+
+## 6. 编码与依赖
 
 - **Excel 编码**：ExcelDataReader 会使用 Code Page 1252 等，需在首次读 Excel 前注册 `System.Text.Encoding.CodePagesEncodingProvider`。
   - 在 **MapConfigLoader** 与 **GeneralConfigLoader** 的静态构造函数中均调用 `Encoding.RegisterProvider(CodePagesEncodingProvider.Instance)`，保证无论先加载地图还是先加载棋将配置都不会报编码错误。
@@ -98,13 +109,14 @@
 
 ---
 
-## 6. 文件与资源结构速查
+## 7. 文件与资源结构速查
 
 | 用途           | 路径/位置 |
 |----------------|-----------|
-| 棋将配置       | `config/General.xlsx` |
-| 地图布局       | `config/Map.xlsx`（5 行×11 列，每格一 MAPCELLID） |
-| 地图格贴图配置 | `config/MapCell.xlsx`（MAPCELLID → MAPCELLRES） |
+| 棋将配置       | `config/general.json`（优先）或 `config/General.xlsx` |
+| 地图布局       | `config/map_grid.json`（优先）或 `config/Map.xlsx`（5 行×11 列） |
+| 地图格贴图配置 | `config/map_cell.json`（优先）或 `config/MapCell.xlsx`（MAPCELLID → MAPCELLRES） |
+| 配置导出       | `python tools/export_config.py`；可选 Luban 见 `tools/luban/README.md` |
 | 棋将立绘       | `Res/General/`（如 knight.png, Witch.png, SwordKnight.png） |
 | 敌将立绘       | `Res/Enemy/`（如 monster1/2/3.png） |
 | 地图格贴图     | `Res/Map/`（如 grass.png, stone.png） |
@@ -116,7 +128,7 @@
 
 ---
 
-## 7. 本次对话主要变更摘要
+## 8. 本次对话主要变更摘要
 
 1. **棋将/敌将立绘**：ColorRect 改为 TextureRect；支持导出 `PortraitTexture` 与运行时 `SetPortrait`；TestScene 中为三个棋将指定 General 下 knight/Witch/SwordKnight，敌将指定 Enemy 下 1/2/3。
 2. **棋将配置表**：从 General.xlsx 按 ID 加载攻击力、攻击距离、移动距离、形象路径；引入 HeroConfig、GeneralConfigLoader、ApplyToHero、SetPortraitPath；形象路径规范化与 _Ready 兜底加载，修复“形象不显示”；TestScene 改为通过 HeroConfigIds 与 ApplyToHero 按 ID 绑定。
@@ -124,5 +136,6 @@
 4. **编码**：MapConfigLoader 与 GeneralConfigLoader 静态构造函数中注册 CodePagesEncodingProvider，消除 Excel 读取时的 encoding 1252 错误。
 5. **点击与层级**：所有地图格 MouseFilter = Ignore；点击层 ZIndex = 10、最后添加，保证棋将可被选中与操作。
 6. **回合与棋将血量**：General.xlsx 新增「血量」/「GHp」列；棋将拥有血量并从配置读取初始值，可被怪物攻击扣血（伤害 1），血量为 0 时移除。我方与怪物方轮流回合，每回合每方 2 次行为（每次为一次移动或一次攻击）；怪物 AI 以最近棋将为目标，能攻击则攻击否则移动一格。
+7. **棋将包布局与配置流水线**：棋将包区域增加横向 ScrollContainer，最小高度 120，解决多棋将时显示不全。配置改为优先从 `config/*.json` 加载，无 JSON 时回退 Excel；提供 `tools/export_config.py`（Python + openpyxl）与可选 Luban 配置（`tools/luban/`），资源更新或打包前执行导出即可。
 
-以上约定与实现均已在当前代码与资源结构中落地，后续扩展新棋将、新地图或新 MAPCELL 类型时，只需在对应 Excel 中增行/增列并在代码中引用对应 ID 即可。
+以上约定与实现均已在当前代码与资源结构中落地，后续扩展新棋将、新地图或新 MAPCELL 类型时，只需在对应 Excel 中增行/增列并（可选）重新运行配置导出，在代码中引用对应 ID 即可。

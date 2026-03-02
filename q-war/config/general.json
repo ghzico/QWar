@@ -1,0 +1,26 @@
+{
+  "1": {
+    "id": 1,
+    "attack": 2,
+    "attackRange": 2,
+    "moveRange": 5,
+    "portraitPath": "res://Res/General/knight.png",
+    "ghp": 20
+  },
+  "2": {
+    "id": 2,
+    "attack": 1,
+    "attackRange": 4,
+    "moveRange": 1,
+    "portraitPath": "res://Res/General/Witch.png",
+    "ghp": 10
+  },
+  "3": {
+    "id": 3,
+    "attack": 1,
+    "attackRange": 1,
+    "moveRange": 3,
+    "portraitPath": "res://Res/General/SwordKnight.png",
+    "ghp": 30
+  }
+}

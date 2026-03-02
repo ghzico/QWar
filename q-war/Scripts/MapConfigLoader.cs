@@ -14,6 +14,8 @@ namespace QWar;
 /// </summary>
 public static class MapConfigLoader
 {
+	private const string MapCellJsonPath = "res://config/map_cell.json";
+	private const string MapGridJsonPath = "res://config/map_grid.json";
 	private const string MapCellPath = "res://config/MapCell.xlsx";
 	private const string MapPath = "res://config/Map.xlsx";
 	private const string MapResPrefix = "res://Res/Map/";
@@ -27,10 +29,43 @@ public static class MapConfigLoader
 	/// <summary>MAPCELLID -> 可用于 GD.Load 的完整资源路径（已归一化到 res://，相对路径会补 Res/Map）</summary>
 	public static IReadOnlyDictionary<int, string> LoadMapCellResources()
 	{
+		if (TryLoadMapCellFromJson(out var fromJson))
+			return fromJson;
+		return LoadMapCellFromExcel();
+	}
+
+	private static bool TryLoadMapCellFromJson(out IReadOnlyDictionary<int, string> result)
+	{
+		result = new Dictionary<int, string>();
+		if (!Godot.FileAccess.FileExists(MapCellJsonPath))
+			return false;
+		try
+		{
+			using var file = Godot.FileAccess.Open(MapCellJsonPath, Godot.FileAccess.ModeFlags.Read);
+			if (file == null) return false;
+			string jsonText = file.GetAsText();
+			var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(jsonText);
+			if (dict == null) return false;
+			var outDict = new Dictionary<int, string>();
+			foreach (var kv in dict)
+				if (int.TryParse(kv.Key, out int id) && !string.IsNullOrEmpty(kv.Value))
+					outDict[id] = kv.Value;
+			result = outDict;
+			return true;
+		}
+		catch (Exception ex)
+		{
+			GD.PushWarning($"读取 map_cell.json 失败，将回退到 Excel: {ex.Message}");
+			return false;
+		}
+	}
+
+	private static IReadOnlyDictionary<int, string> LoadMapCellFromExcel()
+	{
 		var result = new Dictionary<int, string>();
 		if (!Godot.FileAccess.FileExists(MapCellPath))
 		{
-			GD.PushWarning($"配置不存在: {MapCellPath}");
+			GD.PushWarning($"配置不存在: {MapCellPath}，建议运行配置转换: python tools/export_config.py");
 			return result;
 		}
 
@@ -81,15 +116,49 @@ public static class MapConfigLoader
 	}
 
 	/// <summary>
-	/// 从 Map.xlsx 读取 5×10 的 MAPCELLID 网格。
-	/// 约定：第 0 行为表头；第 1～5 行为地图第 0～4 行。每行 11 列：列0=MAPID，列1～10=该行从左到右 10 格的 MAPCELLID（每格一个数，无分号）。
+	/// 从 Map.xlsx 或 config/map_grid.json 读取 5×10 的 MAPCELLID 网格。优先 JSON，失败则回退 Excel。
 	/// </summary>
 	public static int[,] LoadMapGrid(int mapId = 1)
+	{
+		if (TryLoadMapGridFromJson(out var fromJson))
+			return fromJson;
+		return LoadMapGridFromExcel();
+	}
+
+	private static bool TryLoadMapGridFromJson(out int[,] grid)
+	{
+		grid = new int[5, 10];
+		if (!Godot.FileAccess.FileExists(MapGridJsonPath))
+			return false;
+		try
+		{
+			using var file = Godot.FileAccess.Open(MapGridJsonPath, Godot.FileAccess.ModeFlags.Read);
+			if (file == null) return false;
+			string jsonText = file.GetAsText();
+			var rows = System.Text.Json.JsonSerializer.Deserialize<int[][]>(jsonText);
+			if (rows == null || rows.Length < 5) return false;
+			for (int r = 0; r < 5; r++)
+			{
+				var row = rows[r];
+				if (row == null) continue;
+				for (int c = 0; c < 10 && c < row.Length; c++)
+					grid[r, c] = row[c];
+			}
+			return true;
+		}
+		catch (Exception ex)
+		{
+			GD.PushWarning($"读取 map_grid.json 失败，将回退到 Excel: {ex.Message}");
+			return false;
+		}
+	}
+
+	private static int[,] LoadMapGridFromExcel()
 	{
 		var grid = new int[5, 10];
 		if (!Godot.FileAccess.FileExists(MapPath))
 		{
-			GD.PushWarning($"配置不存在: {MapPath}");
+			GD.PushWarning($"配置不存在: {MapPath}，建议运行配置转换: python tools/export_config.py");
 			return grid;
 		}
 
@@ -103,7 +172,6 @@ public static class MapConfigLoader
 			});
 			if (dataSet.Tables.Count == 0) return grid;
 			DataTable table = dataSet.Tables[0];
-			// 第 0 行表头，第 1～5 行 = 地图第 0～4 行；每行 11 列：列0=MAPID（可选），列1～10=该行从左到右 10 个 MAPCELLID
 			for (int r = 0; r < 5 && r + 1 < table.Rows.Count; r++)
 			{
 				DataRow row = table.Rows[r + 1];

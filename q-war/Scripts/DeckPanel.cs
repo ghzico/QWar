@@ -17,14 +17,21 @@ public partial class DeckPanel : Control
 
 	public override void _Ready()
 	{
-		CustomMinimumSize = new Vector2(0, 100);
+		CustomMinimumSize = new Vector2(0, 120);
 		var vbox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
 		vbox.AddThemeConstantOverride("separation", 8);
 		AddChild(vbox);
 
-		_cardsContainer = new HBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+		var scroll = new ScrollContainer
+		{
+			SizeFlagsHorizontal = SizeFlags.ExpandFill,
+			HorizontalScrollMode = ScrollContainer.ScrollMode.ShowAlways,
+			VerticalScrollMode = ScrollContainer.ScrollMode.Disabled
+		};
+		_cardsContainer = new HBoxContainer();
 		_cardsContainer.AddThemeConstantOverride("separation", 12);
-		vbox.AddChild(_cardsContainer);
+		scroll.AddChild(_cardsContainer);
+		vbox.AddChild(scroll);
 
 		_confirmButton = new Button
 		{
