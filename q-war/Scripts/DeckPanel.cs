@@ -18,6 +18,7 @@ public partial class DeckPanel : Control
 	public override void _Ready()
 	{
 		CustomMinimumSize = new Vector2(0, 120);
+		MouseFilter = MouseFilterEnum.Stop;
 		var vbox = new VBoxContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
 		vbox.AddThemeConstantOverride("separation", 8);
 		AddChild(vbox);
@@ -65,7 +66,7 @@ public partial class DeckPanel : Control
 
 	private Control CreateHeroCard(int configId, HeroConfig config)
 	{
-		var card = new DeckHeroCard { ConfigId = configId };
+		var card = new DeckHeroCard { ConfigId = configId, DeckPanel = this };
 		card.CustomMinimumSize = new Vector2(80, 90);
 		card.SetMeta("hero_config_id", configId);
 
@@ -117,6 +118,23 @@ public partial class DeckPanel : Control
 
 	/// <summary>某棋将是否已被拖拽上场（本场仅可上场一次）</summary>
 	public bool IsDeployed(int configId) => _deployedConfigIds.Contains(configId);
+
+	/// <summary>将棋将从场上撤下（拖入背包时调用），从已上场列表移除并刷新卡片显示</summary>
+	public void UnmarkDeployed(int configId)
+	{
+		_deployedConfigIds.Remove(configId);
+		UpdateCardVisibility();
+	}
+
+	/// <summary>将棋盘上的棋将拖入背包时由 DeckHeroCard 调用</summary>
+	internal void HandleHeroDroppedFromBoard(ChessHero hero)
+	{
+		if (Board == null || hero == null) return;
+		int configId = hero.ConfigId;
+		Board.RemoveUnitAt(hero.GridRow, hero.GridCol);
+		UnmarkDeployed(configId);
+		hero.QueueFree();
+	}
 
 	private void UpdateCardVisibility()
 	{

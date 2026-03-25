@@ -33,11 +33,14 @@ public partial class FightBoard : Control
 
 	private bool _isPlayerTurn = true;
 	private int _actionsRemainingThisTurn = 2;
+	/// <summary>当前回合每棋将剩余行动次数（我方回合有效）</summary>
+	private readonly Dictionary<ChessHero, int> _heroActionsRemaining = new();
 	private readonly Dictionary<(int row, int col), Node> _gridUnits = new();
 	private Control _cellsContainer = null!;
 	private Control _unitsContainer = null!;
 	private Control _clickLayer = null!;
 	private Control _highlightContainer = null!;
+	private DeploymentDragLayer? _deploymentDragLayer;
 	private readonly List<ColorRect> _highlightRects = new();
 	private Button _cancelButton = null!;
 	private bool _battleResultShown;
@@ -94,12 +97,50 @@ public partial class FightBoard : Control
 	public void EnterDeploymentPhase()
 	{
 		_isDeploymentPhase = true;
+		_deploymentDragLayer = new DeploymentDragLayer(this);
+		_deploymentDragLayer.Build();
+		AddChild(_deploymentDragLayer);
 	}
 
 	/// <summary>确认出战，结束布阵阶段并开始战斗（我方回合开始）</summary>
 	public void StartBattle()
 	{
 		_isDeploymentPhase = false;
+		if (_deploymentDragLayer != null && IsInstanceValid(_deploymentDragLayer))
+		{
+			_deploymentDragLayer.QueueFree();
+			_deploymentDragLayer = null;
+		}
+		InitHeroActionsForTurn();
+	}
+
+	/// <summary>为本回合在场存活棋将各赋予 2 次行动</summary>
+	private void InitHeroActionsForTurn()
+	{
+		_heroActionsRemaining.Clear();
+		foreach (var kv in _gridUnits)
+		{
+			if (kv.Value is ChessHero hero && hero.IsAlive)
+				_heroActionsRemaining[hero] = 2;
+		}
+	}
+
+	/// <summary>指定棋将本回合剩余行动次数（仅我方回合有效）</summary>
+	public int GetHeroActionsRemaining(ChessHero hero)
+	{
+		return _heroActionsRemaining.TryGetValue(hero, out int n) ? n : 0;
+	}
+
+	/// <summary>结束当前棋将本回合（放弃移动）：将该棋将剩余次数置 0；若我方无剩余行动则进入怪物回合</summary>
+	public void EndCurrentHeroTurn(ChessHero hero)
+	{
+		if (!_isPlayerTurn || hero == null) return;
+		_heroActionsRemaining.Remove(hero);
+		_actionsRemainingThisTurn = 0;
+		foreach (var r in _heroActionsRemaining.Values)
+			_actionsRemainingThisTurn += r;
+		if (_actionsRemainingThisTurn <= 0)
+			RunMonsterTurnAsync();
 	}
 
 	private void OnCancelActionPressed()
@@ -109,6 +150,7 @@ public partial class FightBoard : Control
 
 	private void OnClickLayerInput(InputEvent @event)
 	{
+		if (_isDeploymentPhase) return;
 		if (@event is InputEventMouseButton mb && mb.ButtonIndex == MouseButton.Left && mb.Pressed)
 		{
 			var pos = _clickLayer.GetLocalMousePosition();
@@ -121,16 +163,22 @@ public partial class FightBoard : Control
 				return;
 			}
 			var unit = GetUnitAt(r, c);
-			if (unit is ChessHero hero && !_isDeploymentPhase && _isPlayerTurn && _actionsRemainingThisTurn > 0)
+			if (unit is ChessHero hero && _isPlayerTurn && GetHeroActionsRemaining(hero) > 0)
 				hero.ShowActionPopup();
 		}
 	}
 
-	/// <summary>我方完成一次行为（移动/攻击/技能）后调用；剩余次数减 1，若为 0 则切换怪物回合</summary>
-	public void ConsumePlayerAction()
+	/// <summary>我方某棋将完成一次行为（移动/攻击/技能）后调用；扣除该棋将 1 次，若该棋将归零则移出轮次，若全场无剩余则切换怪物回合</summary>
+	public void ConsumePlayerAction(ChessHero hero)
 	{
-		if (!_isPlayerTurn || _actionsRemainingThisTurn <= 0) return;
-		_actionsRemainingThisTurn--;
+		if (!_isPlayerTurn || hero == null) return;
+		if (!_heroActionsRemaining.TryGetValue(hero, out int remaining) || remaining <= 0) return;
+		_heroActionsRemaining[hero] = remaining - 1;
+		if (_heroActionsRemaining[hero] <= 0)
+			_heroActionsRemaining.Remove(hero);
+		_actionsRemainingThisTurn = 0;
+		foreach (var r in _heroActionsRemaining.Values)
+			_actionsRemainingThisTurn += r;
 		if (_actionsRemainingThisTurn <= 0)
 			RunMonsterTurnAsync();
 	}
@@ -154,7 +202,10 @@ public partial class FightBoard : Control
 		}
 
 		_isPlayerTurn = true;
-		_actionsRemainingThisTurn = 2;
+		InitHeroActionsForTurn();
+		_actionsRemainingThisTurn = 0;
+		foreach (var r in _heroActionsRemaining.Values)
+			_actionsRemainingThisTurn += r;
 	}
 
 	/// <summary>单只怪物 AI：最多 actionsLeft 次行为；攻击时播 attack 并等待后扣血，移动时播 walk 并 Tween 位移</summary>
@@ -508,32 +559,51 @@ public partial class FightBoard : Control
 	internal bool CanDropDataAt(Vector2 atPosition, Variant data)
 	{
 		if (!_isDeploymentPhase || DeckPanel == null) return false;
-		if (data.VariantType != Variant.Type.Int && data.VariantType != Variant.Type.Float) return false;
-		int configId = data.AsInt32();
-		if (DeckPanel.IsDeployed(configId)) return false;
 		int c = (int)(atPosition.X / CellSizePx);
 		int r = (int)(atPosition.Y / CellSizePx);
 		if (!IsInBounds(r, c) || (c != 0 && c != 1)) return false;
-		return GetUnitAt(r, c) == null;
+
+		if (data.VariantType == Variant.Type.Object && data.AsGodotObject() is ChessHero hero)
+		{
+			var unit = GetUnitAt(r, c);
+			return unit == null || unit == hero;
+		}
+		if (data.VariantType == Variant.Type.Int || data.VariantType == Variant.Type.Float)
+		{
+			int configId = data.AsInt32();
+			if (DeckPanel.IsDeployed(configId)) return false;
+			return GetUnitAt(r, c) == null;
+		}
+		return false;
 	}
 
 	/// <summary>布阵阶段拖放：在指定位置放置棋将（供 BoardDropZone 调用）</summary>
 	internal void DropDataAt(Vector2 atPosition, Variant data)
 	{
-		int configId = data.AsInt32();
 		int col = (int)(atPosition.X / CellSizePx);
 		int row = (int)(atPosition.Y / CellSizePx);
-		if (!IsInBounds(row, col) || (col != 0 && col != 1) || GetUnitAt(row, col) != null)
+		if (!IsInBounds(row, col) || (col != 0 && col != 1)) return;
+
+		if (data.VariantType == Variant.Type.Object && data.AsGodotObject() is ChessHero hero)
+		{
+			if (GetUnitAt(row, col) != null && GetUnitAt(row, col) != hero) return;
+			RemoveUnitAt(hero.GridRow, hero.GridCol);
+			PlaceUnit(hero, row, col);
 			return;
+		}
+		if (data.VariantType != Variant.Type.Int && data.VariantType != Variant.Type.Float) return;
+		int configId = data.AsInt32();
+		if (GetUnitAt(row, col) != null) return;
 		if (DeckPanel == null || DeckPanel.IsDeployed(configId)) return;
 
 		var heroScene = GD.Load<PackedScene>("res://Scenes/ChessHero.tscn");
-		var hero = heroScene.Instantiate<ChessHero>();
+		var newHero = heroScene.Instantiate<ChessHero>();
 		var configs = GeneralConfigLoader.LoadHeroConfigs();
-		if (!GeneralConfigLoader.ApplyToHero(hero, configId, configs))
+		if (!GeneralConfigLoader.ApplyToHero(newHero, configId, configs))
 			GD.PushWarning($"棋将配置 ID {configId} 在 General.xlsx 中未找到。");
-		hero.SetHeroIndex(_deployedHeroCount++);
-		PlaceUnit(hero, row, col);
+		newHero.ConfigId = configId;
+		newHero.SetHeroIndex(_deployedHeroCount++);
+		PlaceUnit(newHero, row, col);
 		DeckPanel.MarkDeployed(configId);
 	}
 }
