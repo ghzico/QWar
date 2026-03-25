@@ -21,9 +21,6 @@ public partial class ChessHero : Control
 	/// <summary>棋将序号：0=普通，1=AOE技能，2=下次攻击×3</summary>
 	public int HeroIndex { get; private set; }
 
-	/// <summary>General 配置表 ID，从棋将包放置时设置，供拖入背包时 UnmarkDeployed</summary>
-	public int ConfigId { get; set; }
-
 	/// <summary>棋将立绘，可在场景中导出或运行时通过 SetPortrait 设置</summary>
 	[Export] public Texture2D? PortraitTexture { get; set; }
 
@@ -44,7 +41,6 @@ public partial class ChessHero : Control
 	private Button _btnMove = null!;
 	private Button _btnAttack = null!;
 	private Button? _btnSkill;
-	private Button? _btnSkip;
 
 	private bool _waitingMoveTarget;
 	private bool _waitingAttackTarget;
@@ -55,9 +51,7 @@ public partial class ChessHero : Control
 
 	public override void _Ready()
 	{
-		MouseFilter = Control.MouseFilterEnum.Stop;
 		_textureRect = GetNode<TextureRect>("TextureRect");
-		_textureRect.MouseFilter = Control.MouseFilterEnum.Ignore;
 		// 优先用已设置的贴图；若无则用配置路径再加载一次（解决先 ApplyToHero 再入树时贴图未绑定的问题）
 		if (PortraitTexture != null)
 			_textureRect.Texture = PortraitTexture;
@@ -90,10 +84,6 @@ public partial class ChessHero : Control
 		_btnAttack.Pressed += OnAttackPressed;
 		if (_btnSkill != null)
 			_btnSkill.Pressed += OnSkillPressed;
-
-		_btnSkip = new Button { Text = "放弃移动" };
-		_btnSkip.Pressed += OnSkipPressed;
-		GetNode<VBoxContainer>("ActionPopup/Margin/VBox").AddChild(_btnSkip);
 
 		UpdateSkillButtonVisibility();
 		UpdateHpDisplay();
@@ -195,12 +185,6 @@ public partial class ChessHero : Control
 			ApplyNextAttackBuff();
 	}
 
-	private void OnSkipPressed()
-	{
-		_actionPopup.Hide();
-		_board.EndCurrentHeroTurn(this);
-	}
-
 	/// <summary>第二棋将：选择目标后对目标及上下左右共5格各造成1点伤害</summary>
 	private void StartSkillAoeTargetMode()
 	{
@@ -260,7 +244,7 @@ public partial class ChessHero : Control
 				_board.SelectedHero = null;
 				_board.HideCancelButton();
 				_board.MoveUnit(GridRow, GridCol, row, col);
-				_board.ConsumePlayerAction(this);
+				_board.ConsumePlayerAction();
 			}
 		}
 		else if (_waitingAttackTarget)
@@ -278,7 +262,7 @@ public partial class ChessHero : Control
 					int damage = Attack * _nextAttackDamageMultiplier;
 					_nextAttackDamageMultiplier = 1;
 					enemy.TakeDamage(damage);
-					_board.ConsumePlayerAction(this);
+					_board.ConsumePlayerAction();
 				}
 			}
 		}
@@ -296,7 +280,7 @@ public partial class ChessHero : Control
 				foreach (var (nr, nc) in _board.GetNeighbourCells(row, col))
 					aoeCells.Add((nr, nc));
 				_board.ApplyDamageToCells(aoeCells, Attack);
-				_board.ConsumePlayerAction(this);
+				_board.ConsumePlayerAction();
 			}
 		}
 	}
@@ -310,5 +294,4 @@ public partial class ChessHero : Control
 		_board.SelectedHero = null;
 		_board.HideCancelButton();
 	}
-
 }

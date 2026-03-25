@@ -19,10 +19,6 @@ config/icon="res://Res/icon.svg"
 
 project/assembly_name="QWar"
 
-[editor_plugins]
-
-enabled=PackedStringArray("res://addons/agent/plugin.cfg")
-
 [physics]
 
 3d/physics_engine="Jolt Physics"
